@@ -69,6 +69,8 @@ def blit_alpha(target, source, location, opacity):
     target.blit(temp, location)
     
 class EchoClient(object):
+    def __init__(self):
+        self.server = None
     def connect(self):
         clientfactory = pb.PBClientFactory()
         reactor.connectTCP("localhost", 8789, clientfactory)
@@ -84,7 +86,8 @@ class EchoClient(object):
         tick_begin()
         
     def err_obj(self, reason):
-        print "error getting object: ", reason
+        #print "error getting object: ", reason
+        print "Could not connect to server!"
         print "starting single player ..."
         single_player()
         
@@ -117,7 +120,7 @@ class Proj:
         self.speed = speed
         self.length = length
     def move(self):
-        self.dir += timescale((random.random()/50)-(1.0/100))
+        self.dir += timescale((random.random()/60)-(1.0/120))
         self.pos = rotate((0, -timescale(self.speed)), self.pos, self.dir)
     def draw(self):
         pos2 = rotate((0, self.length), self.pos, self.dir)
@@ -170,19 +173,6 @@ class Tank:
             p = Proj(pos, self.candir, 480, 6, self)
             proj.append(p)
             
-            '''
-            copy1 = pygame.mixer.Sound(sounds['pew'].get_buffer())
-            chan1 = pygame.mixer.find_channel()
-            chan1.queue(copy1)
-            copy2 = pygame.mixer.Sound(sounds['pew2'].get_buffer())
-            chan2 = pygame.mixer.find_channel()
-            chan2.queue(copy2)
-            
-            pygame.mixer.Channel(0).stop()
-            pygame.mixer.Channel(0).play(sounds['pew'])
-            pygame.mixer.Channel(1).stop()
-            pygame.mixer.Channel(1).play(sounds['pew2'])
-            '''
             sounds['pew'].play()
             sounds['pew2'].play()
             
@@ -241,6 +231,12 @@ class Tank:
         pygame.draw.polygon(screen, (0, 0, 0), cannpoly, 3)
         pygame.draw.line(screen, (255, 255, 255), cannpoly[0], cannpoly[1], 3)
         
+        #targeting laser
+        pos = rotate((0, -self.cheight/2 - 2), self.pos, self.candir)
+        pos2 = rotate((0, -900), pos, self.candir)
+        pygame.draw.line(screen, (0, 255, 0), pos, pos2)
+        
+        
 class Birdo:
     speed = 70
     width = 15
@@ -293,7 +289,7 @@ class Alert:
         Txt.render(self.string, self.pos[0], self.pos[1], alpha)
         
         
-t = Tank((width/2, height/2), 0, 0, 100, 150)
+t = Tank((width/2, height/2), 0, 0, 100, 1500)
 b = Birdo((width/4, height/2))
 proj = []
 sparks = []
@@ -468,10 +464,14 @@ def draw_scene():
         Txt.render("Bullets On Screen: "+str(len(proj)), 10, 30)
         Txt.render("t.x: "+str(t.pos[0]), 10, 50)
         Txt.render("t.y: "+str(t.pos[1]), 10, 70)
-        Txt.render("NETWORK OPS / SEC: "+str(clock.get_fps()), 10, 90)
+        
         #fps = 1.0/(int(round(time.time() * 1000))-inputs['last_frame']) if inputs['last_frame'] else 0
-        Txt.render("FPS              : "+str(inputs['fps']), 10, 110)
-        Txt.render("MS Since Last Tick: "+str(ms), 10, 130)
+        if conn.server:
+            Txt.render("NETWORK OPS / SEC: "+str(clock.get_fps()), 10, 90)
+            Txt.render("FPS              : "+str(inputs['fps']), 10, 110)
+        else:
+            Txt.render("FPS              : "+str(clock.get_fps()), 10, 110)
+        
         screen.set_at((int(t.pos[0]), int(t.pos[1])), (255,255,255))
     Txt.render("Score: "+str(inputs['score']), 10, height-25)
     
@@ -492,7 +492,7 @@ def tick_begin():
    conn.req_echo("TEST")
    
 def tick_return(response):
-    #networ k events have been receiveed
+    #network events have been receiveed
     print response
     
     global ms
@@ -505,13 +505,9 @@ def tick_return(response):
         tick_begin()
         
 def local_stuff():
-    #global ms
-    #ms = clock.tick()
-    #advance_state()
     now = pygame.time.get_ticks()
     if inputs['last_frame']:
         inputs['fps'] = 1000.0/(now-inputs['last_frame'])
-        #print "FPS: " + str(inputs['fps'])
     draw_scene()
     pygame.display.update()
     inputs['last_frame'] = pygame.time.get_ticks()
@@ -519,7 +515,7 @@ def local_stuff():
 def single_player():
     while not inputs['done']:
         global ms
-        ms = clock.tick_busy_loop(120)
+        ms = clock.tick_busy_loop(240)
         handle_input()
         advance_state()
         draw_scene()
@@ -530,6 +526,6 @@ if __name__ == "__main__":
     conn = EchoClient()
     conn.connect()
     lc = LoopingCall(local_stuff)
-    lc.start(1.0/120)
+    lc.start(1.0/240)
     reactor.run()
     pygame.quit()
