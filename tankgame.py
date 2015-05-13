@@ -24,9 +24,9 @@ pygame.mixer.init()
 pygame.mixer.set_num_channels(128)
 
 sounds = {}
-sounds['pew'] = pygame.mixer.Sound('pew.ogg')
+sounds['pew'] = pygame.mixer.Sound('pew3.ogg')
 sounds['pew2'] = pygame.mixer.Sound('pew2.ogg')
-sounds['pew'].set_volume(.0001)
+#sounds['pew2'].set_volume(.01)
 
 sounds['beep'] = pygame.mixer.Sound('beep.ogg')
 sounds['pew'].set_volume(.3)
@@ -99,7 +99,7 @@ class EchoClient(object):
         
     def quit(self):
         print "shutting down"
-        if self.server:
+        if reactor.running:
             reactor.stop()
         self.server = None
     '''
