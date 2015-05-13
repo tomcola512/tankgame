@@ -8,7 +8,7 @@ from math import pi
 import random
 
 from twisted.spread import pb
-from twisted.internet import reactor
+from twisted.internet import reactor, threads
 from twisted.python import util
 from twisted.internet.task import LoopingCall
 from client import EchoClient
@@ -45,9 +45,10 @@ clock = pygame.time.Clock()
 
 v2 = pygame.math.Vector2
 ms = 0
-
+lms = 0
+seq = 0
 def timescale(x):
-    return x*ms/1000.0
+    return x*lms/1000.0
 
 def rotate(offset, center, angle):
     x = offset[0]
@@ -98,7 +99,9 @@ class EchoClient(object):
         
     def quit(self):
         print "shutting down"
-        reactor.stop()
+        if self.server:
+            reactor.stop()
+        self.server = None
     '''
     def req_add(self, a, b):
         d = self.server.callRemote("add", int(a), int(b))
@@ -109,8 +112,15 @@ class EchoClient(object):
         d.addCallbacks(recv_sub, self.err)
     '''
     def req_echo(self, str):
-        d = self.server.callRemote("echo", str)
-        d.addCallbacks(tick_return, self.err)
+        if not inputs['done']:
+            d = self.server.callRemote("echo", str)
+            #d.addCallbacks(self.got_echo, self.err)
+            cb = lambda x: reactor.callFromThread(tick_return, x)
+            d.addCallbacks(cb, self.err)
+            
+    def got_echo(self, response):
+        print "GOT " + response
+        return response
     
 class Proj:
     def __init__(self, pos, dir, speed, length, creator=None):
@@ -485,19 +495,22 @@ conn = EchoClient()
 def tick_begin():
    #global ms
    #ms = clock.tick_busy_loop(120)
-   print ms
+   #print ms
    handle_input()
    
    #send network events
-   conn.req_echo("TEST")
-   
+   #reactor.callInThread(conn.req_echo("TEST"))
+   d = threads.deferToThread(conn.req_echo, "TEST_DEFERRED_TO_THREAD")
+   #d.addCallbacks(tick_return, conn.err)
 def tick_return(response):
     #network events have been receiveed
-    print response
+    global seq
+    seq = seq + 1
+    print "TICK RETURN GOT: " + str(response) + " | " + str(seq)
     
     global ms
     ms = clock.tick()
-    advance_state()
+    
     
     if inputs['done']:
         conn.quit()
@@ -506,8 +519,14 @@ def tick_return(response):
         
 def local_stuff():
     now = pygame.time.get_ticks()
+    global lms
+    if inputs['last_frame']:
+        lms = now - inputs['last_frame']
+    else:
+        lms = 0
     if inputs['last_frame']:
         inputs['fps'] = 1000.0/(now-inputs['last_frame'])
+    advance_state()
     draw_scene()
     pygame.display.update()
     inputs['last_frame'] = pygame.time.get_ticks()

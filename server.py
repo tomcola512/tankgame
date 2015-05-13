@@ -2,6 +2,7 @@ from twisted.spread import pb
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 import time
+import random
 
 class ServerObject(pb.Root):
     def __init__(self):
@@ -18,8 +19,11 @@ class ServerObject(pb.Root):
         return None
         
     def remote_echo(self, foo):
+        global seq
+        seq=seq+1
         print 
-        print "Echoing \"" + str(foo)
+        print "Echoing \"" + str(foo) + " | " + str(seq)
+        time.sleep(random.random())
         return foo
         
     def update_state(self):
@@ -29,7 +33,7 @@ class ServerObject(pb.Root):
         #update game state
         
         self.last_update = new_time
-        
+seq = 0
 if __name__ == '__main__':
     server = ServerObject()
     reactor.listenTCP(8789, pb.PBServerFactory(server))
