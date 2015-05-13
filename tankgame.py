@@ -10,6 +10,7 @@ import random
 from twisted.spread import pb
 from twisted.internet import reactor
 from twisted.python import util
+from twisted.internet.task import LoopingCall
 from client import EchoClient
 
 pygame.mixer.pre_init(44100, -16, 2, 1024)
@@ -26,7 +27,6 @@ sounds = {}
 sounds['pew'] = pygame.mixer.Sound('pew.ogg')
 sounds['pew2'] = pygame.mixer.Sound('pew2.ogg')
 sounds['pew'].set_volume(.0001)
-#sounds['pew2'].set_volume(.0001)
 
 sounds['beep'] = pygame.mixer.Sound('beep.ogg')
 sounds['pew'].set_volume(.3)
@@ -480,8 +480,8 @@ def input_call():
 conn = EchoClient()
 
 def tick_begin():
-   global ms
-   ms = clock.tick_busy_loop(120)
+   #global ms
+   #ms = clock.tick_busy_loop(120)
    print ms
    handle_input()
    
@@ -491,13 +491,20 @@ def tick_begin():
 def tick_return(response):
     #networ k events have been receiveed
     print response
-    advance_state()
-    draw_scene()
-    pygame.display.update()
+    #advance_state()
+    #draw_scene()
+    #pygame.display.update()
     if inputs['done']:
         conn.quit()
     else:
         tick_begin()
+        
+def local_stuff():
+    global ms
+    ms = clock.tick()
+    advance_state()
+    draw_scene()
+    pygame.display.update()
         
 def single_player():
     while not inputs['done']:
@@ -508,24 +515,11 @@ def single_player():
         draw_scene()
         pygame.display.update()
     conn.quit()
+    
 if __name__ == "__main__":
     conn = EchoClient()
     conn.connect()
+    lc = LoopingCall(local_stuff)
+    lc.start(1.0/120)
     reactor.run()
     pygame.quit()
-'''
-while not inputs['done']:
-    ms = clock.tick_busy_loop(120)
-    
-    handle_input()
-    
-    #submit input
-    
-    #receive events
-        
-    advance_state()
-    
-    draw_scene()
-
-    pygame.display.update()
-'''
