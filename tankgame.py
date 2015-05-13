@@ -117,7 +117,7 @@ class Proj:
         self.speed = speed
         self.length = length
     def move(self):
-        self.dir += (random.random()/50)-(1.0/100)
+        self.dir += timescale((random.random()/50)-(1.0/100))
         self.pos = rotate((0, -timescale(self.speed)), self.pos, self.dir)
     def draw(self):
         pos2 = rotate((0, self.length), self.pos, self.dir)
@@ -134,7 +134,7 @@ class Spark:
         return pygame.time.get_ticks() < self.born + self.ttl
     
     def move(self):
-        self.dir += (random.random()/25)-(1.0/50)
+        self.dir += timescale((random.random()/12)-(1.0/24))
         self.pos = rotate((0, -timescale(self.speed)), self.pos, self.dir)
     
     def draw(self):
@@ -147,7 +147,7 @@ class Spark:
         
     
 class Tank:
-    speed = 60
+    speed = 90
     width = 30
     height = 40
     cwidth = 10
@@ -313,7 +313,8 @@ inputs = {
     'score': 0,
     'rumble': None,
     'motor': None,
-    'done': False
+    'done': False,
+    'last_frame': None
     }
     
 def handle_input():
@@ -375,6 +376,7 @@ def advance_state():
         t.candir += timescale(crot)
     if inputs['move'] and not inputs['reverse']:
         t.move()
+    b.move()
     if inputs['reverse'] and not inputs['move']:
         t.reverse()
     if inputs['fire']:
@@ -452,7 +454,6 @@ def draw_scene():
     screen.fill((0,0,0))
     
     t.draw()
-    b.move()
     b.draw()
     
     [a.draw() for a in alerts]
@@ -467,8 +468,10 @@ def draw_scene():
         Txt.render("Bullets On Screen: "+str(len(proj)), 10, 30)
         Txt.render("t.x: "+str(t.pos[0]), 10, 50)
         Txt.render("t.y: "+str(t.pos[1]), 10, 70)
-        Txt.render("FPS: "+str(clock.get_fps()), 10, 90)
-        Txt.render("MS Since Last Tick: "+str(ms), 10, 110)
+        Txt.render("NETWORK OPS / SEC: "+str(clock.get_fps()), 10, 90)
+        #fps = 1.0/(int(round(time.time() * 1000))-inputs['last_frame']) if inputs['last_frame'] else 0
+        Txt.render("FPS              : "+str(inputs['fps']), 10, 110)
+        Txt.render("MS Since Last Tick: "+str(ms), 10, 130)
         screen.set_at((int(t.pos[0]), int(t.pos[1])), (255,255,255))
     Txt.render("Score: "+str(inputs['score']), 10, height-25)
     
@@ -491,20 +494,27 @@ def tick_begin():
 def tick_return(response):
     #networ k events have been receiveed
     print response
-    #advance_state()
-    #draw_scene()
-    #pygame.display.update()
+    
+    global ms
+    ms = clock.tick()
+    advance_state()
+    
     if inputs['done']:
         conn.quit()
     else:
         tick_begin()
         
 def local_stuff():
-    global ms
-    ms = clock.tick()
-    advance_state()
+    #global ms
+    #ms = clock.tick()
+    #advance_state()
+    now = pygame.time.get_ticks()
+    if inputs['last_frame']:
+        inputs['fps'] = 1000.0/(now-inputs['last_frame'])
+        #print "FPS: " + str(inputs['fps'])
     draw_scene()
     pygame.display.update()
+    inputs['last_frame'] = pygame.time.get_ticks()
         
 def single_player():
     while not inputs['done']:
